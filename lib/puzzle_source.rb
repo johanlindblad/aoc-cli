@@ -42,6 +42,11 @@ class PuzzleSource
       module Year#{year}
         class Day#{day}
           def part1(input)
+            # input = input.strip.split("\\n")
+            # input = input.strip.split("\\n").map(&:to_i)
+            # input = input.strip.split("\\n").map(&:chars)
+            # input = input.strip.split("\\n").map{|l| l.split(" ")}
+            # input = input.strip.chars
             "expected_result"
           end
 
