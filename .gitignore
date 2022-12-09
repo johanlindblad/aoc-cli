@@ -3,3 +3,4 @@ input/**/*
 spec/year*
 Gemfile.lock
 .env
+.DS_Store
