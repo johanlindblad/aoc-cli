@@ -10,3 +10,7 @@ gem 'rubocop', require: false
 gem 'thor'
 
 gem 'pqueue'
+
+group :development do
+  gem "ruby-lsp", require: false
+end
