@@ -8,3 +8,11 @@ Security/Eval:
   Enabled: false
 Style/StringLiterals:
   Enabled: false
+Lint/RedundantAssignment:
+  Enabled: false
+Lint/UselessAssignment:
+  Enabled: false
+Style/MultilineBlockChain:
+  Enabled: false
+Style/Documentation:
+  Enabled: false
