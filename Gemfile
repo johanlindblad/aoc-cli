@@ -10,6 +10,8 @@ gem 'rubocop', require: false
 gem 'solargraph'
 gem 'thor'
 
+gem 'networkr'
+gem 'pairing_heap'
 gem 'pqueue'
 gem 'union_find'
 

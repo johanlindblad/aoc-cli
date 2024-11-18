@@ -1,0 +1,176 @@
+require 'networkr'
+require 'pqueue'
+
+module Year2023
+  class Day25
+    def part1(input)
+      input = "jqt: rhn xhk nvd
+rsh: frs pzl lsr
+xhk: hfx
+cmg: qnr nvd lhk bvb
+rhn: xhk bvb hfx
+bvb: xhk hfx
+pzl: lsr hfx nvd
+qnr: nvd
+ntq: jqt hfx bvb xhk
+nvd: lhk
+lsr: lhk
+rzs: qnr cmg lsr rsh
+frs: qnr lhk lsr"
+
+      g = Networkr::MultiGraph.new
+
+      # names = input.split("\n").flat_map do |line|
+      # line.gsub(":", "").split(" ")
+      # end.uniq
+
+      input.strip.split("\n").each do |line|
+        name, connected = line.split(": ")
+        connected = connected.split(" ")
+
+        g.add_node(name)
+
+        connected.each do |c|
+          g.add_node(c)
+          g.add_edge(name, c, weight: 1) unless g.has_edge?(name, c)
+          # g.add_edge(c, name)
+          # g[name] ||= []
+          # g[name].push(c)
+          # g[c] ||= []
+          # g[c].push(name)
+          # num_edges += 2
+        end
+      end
+
+      return karger_repeated(g)
+
+      loop do
+        g2 = g.deep_copy
+        res = karger(g2)
+
+        next if res.nil?
+
+        # puts res.inspect
+        _min, e = res
+
+        if e.length < 10
+          puts "FOUND #{e.length}"
+          break if e.length == 3
+        end
+      end
+
+      nil
+    end
+
+    def karger(g)
+      edges = []
+      while g.length > 2
+        node1 = g.adj.keys.sample
+        node2 = g.children_of(node1).keys.sample
+        e = [node1, node2]
+        edges.push(e)
+        # return nil if edges.length > 3
+
+        contract(g, node1, node2)
+      end
+      node1 = g.adj.keys[0]
+      node2 = g.adj.keys[1]
+      [g.adj[node1][node2].length, edges]
+    end
+
+    def karger_repeated(g)
+      n = g.length
+      mincut = n
+      (n**2 * Math.log(n)).to_i.times do
+        g_copy = g.deep_copy
+        min, e = karger(g_copy)
+        next if min.nil?
+
+        mincut = min if min < mincut
+      end
+      mincut
+    end
+
+    private
+
+    def contract(g, node1, node2)
+      g.children_of(node2).each_key do |node|
+        g.add_edge(node1, node) if node != node1
+        g.adj[node].delete(node2)
+      end
+      g.adj.delete(node2)
+      g.nodes.delete(node2)
+    end
+
+    def temp
+      counts = {}
+
+      g.keys.sample(3).each do |start|
+        g.keys.sample(3).each do |goal|
+          next if start == goal
+
+          queue = [[start]]
+          final = nil
+
+          until queue.empty?
+            path = queue.shift
+
+            if path.last == goal
+              final = path
+              break
+            end
+
+            g[path.last].each do |child|
+              next if path.include?(child)
+
+              queue.push(path.clone + [child])
+            end
+          end
+
+          final.each_cons(2).to_a.each do |pair|
+            counts[pair] ||= 0
+            counts[pair] += 1
+          end
+        end
+      end
+
+      puts "SAMPLED DONE"
+
+      puts counts.max_by(3, &:last).inspect
+
+      remove = counts.max_by(3) { |_k, v| v }.map(&:first)
+
+      remove.each do |edge|
+        from, to = edge
+        g[from].delete(to)
+        g[to].delete(from)
+      end
+
+      queue = [g.keys.first]
+      visited = Set.new
+
+      until queue.empty?
+        node = queue.shift
+        next if visited.include?(node)
+
+        visited.add(node)
+
+        g[node].each do |child|
+          next if visited.include?(child)
+
+          queue.push(child)
+        end
+      end
+
+      num_nodes = g.length
+      size_a = visited.length
+      size_b = num_nodes - size_a
+
+      size_a * size_b
+    end
+
+    def part2(input)
+      nil
+    end
+  end
+end
