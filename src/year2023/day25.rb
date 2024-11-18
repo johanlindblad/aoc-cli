@@ -42,30 +42,59 @@ module Year2023
         groups = remaining.map { |v| [v, [v].to_set] }.to_h # Initialize each vertex as its own group
         # puts to_graphviz
         union_find = UnionFind::UnionFind.new(remaining)
+        all = edges.keys
+        contractions = []
+        copy = dup
 
         while remaining.size > 1
           puts remaining.size
           # Phase of the algorithm
-          a, w = minimum_cut_phase(remaining)
+          # puts [:remaining, remaining.sort].inspect
+          w, s, t = minimum_cut_phase(remaining)
+          contractions.push([s, t])
+          # puts [:w, :s, :t, w, s, t].inspect
 
           # Update minimum cut and track the partition
           if w < min_cut
             min_cut = w
             # Partition groups: A = all except the last vertex in A; B = remaining - A
-            last = a.last
-            best_partition = [groups[last], edges.keys.to_set - groups[last]]
+            last = t
+            # best_partition = [groups[last], edges.keys.to_set - groups[last]]
             # best_partition = [groups[last], remaining - groups[last]] <----- why?
             c1 = union_find.instance_variable_get("@parent").keys
             c2 = edges.keys - c1
-            puts [c1, c2].inspect
+            # puts [c1, c2].inspect
             # best_partition = [c1, c2]
+
+            main, rest = edges.max_by { |_k, v| v.length }
+            comp1 = rest + [main]
+            comp2 = all - comp1
+
+            best_partition = [comp1, comp2]
+            puts [:best, [c1.length, c2.length], best_partition.map(&:length)].inspect
+            puts [:contractions, contractions].inspect
+            puts [:test, contractions[0...-1].flatten.uniq.length].inspect
+            # puts [:best2, comp1, comp2].inspect
+            #
+            return [min_cut, best_partition] if w == 3
+
+            # edges.each do |k, vs|
+            # vs.each do |v|
+            # puts "#{k} -- #{v};"
+            # end
+            # end
           end
 
           # Merge the last two vertices in A
-          s = a[-2]
-          t = a[-1]
+          # s = a[-2]
+          # t = a[-1]
+          # puts [:merge, s, t].inspect
+          # puts [:groups, groups.keys.sort].inspect
 
           merge_vertices(remaining, s, t, groups, union_find)
+          # puts [:groups2, groups.keys.sort].inspect
+          # puts [:remaining2, remaining.sort].inspect
+          # puts [:weights, weights].inspect
         end
 
         [min_cut, best_partition]
@@ -80,42 +109,92 @@ module Year2023
         visited.add(remaining.first)
         heap = PairingHeap::MaxPriorityQueue.new
 
+        edges[remaining.first].each do |neighbor|
+          heap.push(neighbor, weights[[remaining.first, neighbor]])
+        end
+
+        # puts [:trying, a, edges[a]].inspect
+        # puts [:edges, edges].inspect
+
+        next_best = remaining.first
+
         max_weight = 0
 
-        (1...n).each do
-          last = a.last
+        while visited.size < edges.length - 1
+          next_best = heap.pop
+          visited.add(next_best)
 
-          remaining.each do |v|
-            next if visited.include?(v) || !weights.key?([last, v])
+          edges[next_best].each do |neighbor|
+            next if visited.include?(neighbor)
 
-            if heap.include?(v)
-              existing = heap.get_priority(v)
-
-              heap.change_priority(v, existing + @weights[[last, v]])
-              # puts "Updating #{v} to priority #{existing + @weights[[last, v]]}"
+            if heap.include?(neighbor)
+              existing = heap.get_priority(neighbor)
+              heap.change_priority(neighbor, existing + weights[[next_best, neighbor]])
             else
-              heap.push(v, @weights[[last, v]])
-              # puts "Pushing #{v} with priority #{@weights[[last, v]]}"
+              heap.push(neighbor, weights[[next_best, neighbor]])
             end
           end
 
-          next_vertex = nil
-          max_weight = 0
+          # remaining.each do |v|
+          # next if visited.include?(v) || !weights.key?([next_best, v])
+          #
+          # if heap.include?(v)
+          # existing = heap.get_priority(v)
+          #
+          # heap.change_priority(v, existing + @weights[[next_best, v]])
+          ## puts "Updating #{v} to priority #{existing + @weights[[last, v]]}"
+          # else
+          # heap.push(v, @weights[[next_best, v]])
+          ## puts "Pushing #{v} with priority #{@weights[[last, v]]}"
+          # end
+          # end
 
-          next_vertex, max = heap.pop_with_priority
-          max_weight = [max_weight, max].max
+          # next_vertex = nil
+          # max_weight = 0
 
-          a << next_vertex
-          a = a.last(2) if a.length > 10
-          visited.add(next_vertex)
+          # next_vertex, max = heap.pop_with_priority
+          # max_weight = [max_weight, max].max
+
+          # a << next_vertex
+          # a = a.last(2) if a.length > 10
+          # visited.add(next_vertex)
         end
 
-        [a, max_weight]
+        s, cut_weight = heap.pop_with_priority
+        [cut_weight, s, next_best]
       end
 
       def merge_vertices(remaining, s, t, groups, union_find)
         union_find.union(s, t)
-        remaining.delete(t)
+        remaining.delete(s)
+        groups[t].merge(groups[s])
+        groups.delete(s)
+
+        edges[s].each do |v|
+          next if v == t
+
+          edges[v].delete(s)
+
+          if edges[t].include?(v)
+            weights[[t, v]] += weights[[s, v]]
+            weights[[v, t]] += weights[[s, v]]
+          else
+            edges[t].push(v)
+            edges[v].push(t)
+            weights[[t, v]] = weights[[s, v]]
+            weights[[v, t]] = weights[[s, v]]
+          end
+
+          weights.delete([s, v])
+          weights.delete([v, s])
+        end
+
+        edges.delete(s)
+        edges[t].delete(s)
+        weights.delete([s, t])
+        weights.delete([t, s])
+
+        return
 
         edges.each_key do |v|
           next if v == s
@@ -143,10 +222,36 @@ module Year2023
         groups[s].merge(groups[t])
         groups.delete(t)
       end
+
+      def merge_vertices2(s, t)
+        edges[s].each do |v|
+          next if v == t
+
+          edges[v].delete(s)
+
+          if edges[t].include?(v)
+            weights[[t, v]] += weights[[s, v]]
+            weights[[v, t]] += weights[[s, v]]
+          else
+            edges[t].push(v)
+            edges[v].push(t)
+            weights[[t, v]] = weights[[s, v]]
+            weights[[v, t]] = weights[[s, v]]
+          end
+
+          weights.delete([s, v])
+          weights.delete([v, s])
+        end
+
+        edges.delete(s)
+        edges[t].delete(s)
+        weights.delete([s, t])
+        weights.delete([t, s])
+      end
     end
 
     def part1(input)
-      input = "jqt: rhn xhk nvd
+      _input = "jqt: rhn xhk nvd
 rsh: frs pzl lsr
 xhk: hfx
 cmg: qnr nvd lhk bvb
